@@ -2,51 +2,54 @@ package lbq
 
 import (
 	"context"
+	"errors"
+	"time"
 
-	"github.com/edge/gateway/pkg/impactscore"
 	"github.com/edge/atomicstore"
 )
 
+// ScoreEngine represents a client <> job scoring engine.
 type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
-	func Next() key string, score int
+	Next() (key string, score int)
 	// AddClient adds a new client and returns false if the insert failed.
-	func AddClient(key string) bool
-	// RemoveClient removes a client by key.
-	func RemoveClient(key string)
+	AddClient(key string) bool
 	// AddClientWithContext inserts a client into the score engine with a context.
-	func AddClientWithContext(ctx context.Context, key string)
+	AddClientWithContext(ctx context.Context, key string) bool
+	// RemoveClient removes a client by key.
+	RemoveClient(key string)
 	// ClientStartJob tells the score manager that a client has started one or more jobs.
-	func ClientStartJob(key string, count int)
+	ClientStartJob(key string, count uint64)
 	// ClientEndJob tells the score engine that a job has been completed. Used for both canceled and successful jobs.
-	func ClientEndJob(key string, canceled bool, timeTaken time.Duration)
+	ClientEndJob(key string, canceled bool, timeTaken time.Duration)
 	// Reset clears all score and client data.
-	func Reset()
+	Reset()
 	// Dump dumps the current status to stdout.
-	func Dump()
+	Dump()
 }
 
-// TODO: Define edge/impactscore as default load balancer.
-var defaultLoadBalancer = impactscore.New()
+var (
+	defaultLoadBalancer = NewImpactScore()
 
-const (
-	ERR_SET_ENGINE_AFTER_START = errors.New("ScoreEngine can't be changed after Start has been called")
+	// ErrSetEngineAfterStart is thrown when an attempt to set an engine is made following a queue start.
+	ErrSetEngineAfterStart = errors.New("ScoreEngine can't be changed after Start has been called")
 )
 
+// Queue is a atomic data store with a load balancer.
 type Queue struct {
-	jobs *atomicstore.Store
-	scoreEngine *ScoreEngine
+	jobs        *atomicstore.Store
+	scoreEngine ScoreEngine
 }
 
 func (q *Queue) server(ctx context.Context) {
 	// TODO: watch jobs for change
-	// TODO: Get device with q.lb.Next()
+	// TODO: Get device with q.scoreEngine.Next()
 	// TODO: Send request to devices request chan
 }
 
 func (q *Queue) setDefaults() {
-	if q.lb == nil {
-		q.lb = defaultLoadBalancer
+	if q.scoreEngine == nil {
+		q.scoreEngine = defaultLoadBalancer
 	}
 }
 
@@ -59,9 +62,9 @@ func (q *Queue) StartWithContext(ctx context.Context) {
 // WithEngine sets the score engine for the queue.
 func (q *Queue) WithEngine(engine ScoreEngine) error {
 	if q.scoreEngine != nil {
-		return ERR_SET_ENGINE_AFTER_START
+		return ErrSetEngineAfterStart
 	}
-	
+
 	q.scoreEngine = engine
 	return nil
 }
@@ -74,6 +77,6 @@ func (q *Queue) Start() {
 // New creates a new instance of queue.
 func New() *Queue {
 	return &Queue{
-		*atomicstore.New(true),
+		jobs: atomicstore.New(true),
 	}
 }
