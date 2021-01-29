@@ -1,0 +1,4 @@
+github.com/edge/atomiccounter v0.0.0-20210113152313-b78bd3f6f8be h1:LNpatxhWGn5f97n0ICVQjYtie0rSp4WC/vQLutNrmiw=
+github.com/edge/atomiccounter v0.0.0-20210113152313-b78bd3f6f8be/go.mod h1:J5mXM3GpSEKHHWCM2/kW5D/RUaq1Ha7AnxYEFdK2Wvc=
+github.com/edge/atomicstore v0.0.0-20210114134325-01f3c683593d h1:fEmauzvpaOayx/sPyE2tSpyAeAXfR0To6bNC+AxxNZQ=
+github.com/edge/atomicstore v0.0.0-20210114134325-01f3c683593d/go.mod h1:IW7LFUr4N3l9xu03UxKv1anymqS/O7q8Dcsn4CNYsAg=
