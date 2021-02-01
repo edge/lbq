@@ -69,13 +69,13 @@ func (pq *PriorityQueue) Peek() interface{} {
 	return <-result
 }
 
-func (pq *PriorityQueue) peek() (interface{}, bool) {
+func (pq *PriorityQueue) peek() interface{} {
 	old := *pq
 	if n := len(old); n > 0 {
-		return old[n-1], true
+		return old[n-1]
 	}
 
-	return nil, false
+	return nil
 }
 
 func (pq *PriorityQueue) Pop() interface{} {
@@ -140,10 +140,7 @@ func (pq *PriorityQueue) watchHeapOps() chan bool {
 			case popScore := <-heapPopChan:
 				popScore.result.(chan interface{}) <- pq.pop()
 			case peekScore := <-heapPeekChan:
-				item, ok := pq.peek()
-				if ok {
-					peekScore.result.(chan interface{}) <- item
-				}
+				peekScore.result.(chan interface{}) <- pq.peek()
 			}
 
 		}

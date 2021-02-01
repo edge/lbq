@@ -11,7 +11,7 @@ import (
 // ScoreEngine represents a client <> job scoring engine.
 type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
-	Next() (key string, score int)
+	Next() (key string, score int, err error)
 	// AddClient adds a new client and returns false if the insert failed.
 	AddClient(key string) bool
 	// AddClientWithContext inserts a client into the score engine with a context.

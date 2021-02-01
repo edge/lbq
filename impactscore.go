@@ -2,6 +2,7 @@ package lbq
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/edge/atomiccounter"
 )
+
+var ErrNoResults = errors.New("There are no scored items")
 
 type Manager struct {
 	AverageResponseTime *atomiccounter.Counter
@@ -46,9 +49,12 @@ func (ism *Manager) addRequest(duration time.Duration) {
 }
 
 // Next returns the next Host that should handle a request
-func (ism *Manager) Next() (string, int) {
+func (ism *Manager) Next() (string, int, error) {
+	if ism.priorityQueue.Len() == 0 {
+		return "", 0, ErrNoResults
+	}
 	i := ism.priorityQueue.Peek().(*Item)
-	return i.ID, i.Priority
+	return i.ID, i.Priority, nil
 }
 
 // AddClientWithContext adds the client to the device store, with a context.
