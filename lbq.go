@@ -37,19 +37,19 @@ var (
 
 // Queue is a atomic data store with a load balancer.
 type Queue struct {
-	jobs        *atomicstore.Store
-	scoreEngine ScoreEngine
+	jobs *atomicstore.Store
+	ScoreEngine
 }
 
 func (q *Queue) server(ctx context.Context) {
 	// TODO: watch jobs for change
-	// TODO: Get device with q.scoreEngine.Next()
+	// TODO: Get device with q.ScoreEngine.Next()
 	// TODO: Send request to devices request chan
 }
 
 func (q *Queue) setDefaults() {
-	if q.scoreEngine == nil {
-		q.scoreEngine = defaultLoadBalancer
+	if q.ScoreEngine == nil {
+		q.ScoreEngine = defaultLoadBalancer
 	}
 }
 
@@ -61,11 +61,11 @@ func (q *Queue) StartWithContext(ctx context.Context) {
 
 // WithEngine sets the score engine for the queue.
 func (q *Queue) WithEngine(engine ScoreEngine) error {
-	if q.scoreEngine != nil {
+	if q.ScoreEngine != nil {
 		return ErrSetEngineAfterStart
 	}
 
-	q.scoreEngine = engine
+	q.ScoreEngine = engine
 	return nil
 }
 

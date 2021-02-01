@@ -51,6 +51,7 @@ func (ism *Manager) Next() (string, int) {
 	return i.ID, i.Priority
 }
 
+// AddClientWithContext adds the client to the device store, with a context.
 func (ism *Manager) AddClientWithContext(ctx context.Context, key string) bool {
 	fmt.Printf("scoreManager: adding host %q\n", key)
 
@@ -82,7 +83,7 @@ func (ism *Manager) AddClient(key string) bool {
 
 // RemoveClient removes the client from the score engine.
 func (ism *Manager) RemoveClient(key string) {
-	// TODO remove client from ism
+	ism.devices.Delete(key)
 }
 
 // ClientStartJob tells the manager that a new request is sent to device `id`
@@ -123,7 +124,13 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 	var device *DeviceScore
 
 	d, existantDevice := ism.devices.Load(id)
+
 	if !existantDevice {
+		// If this is a canceled job and the device doesn't exist
+		// there is no need to proceed with scoring.
+		if canceled {
+			return
+		}
 		device = &DeviceScore{
 			handledRequestsCount: 0,
 			averageResponse:      ism.avgResponseTime(),
@@ -139,49 +146,29 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 		panic("negative pendingRequestsCount")
 	}
 
-	// update average response time. and increment handled count.
-	device.averageResponse = ((device.averageResponse * device.handledRequestsCount) + uint64(responseTime)) / (device.handledRequestsCount + 1)
-	atomic.AddUint64(&device.handledRequestsCount, 1)
+	// update average response time and increment handled count, unless this is a canceled request.
+	if !canceled {
+		device.averageResponse = ((device.averageResponse * device.handledRequestsCount) + uint64(responseTime)) / (device.handledRequestsCount + 1)
+		atomic.AddUint64(&device.handledRequestsCount, 1)
+	}
 
 	item := &Item{
 		Priority: device.Score(),
 		ID:       id,
 	}
 
-	ism.addRequest(responseTime)
+	if !canceled {
+		ism.addRequest(responseTime)
 
-	if !existantDevice {
-		ism.priorityQueue.Push(item)
-		return
+		if !existantDevice {
+			ism.priorityQueue.Push(item)
+			return
+		}
 	}
 
 	// Update the heap structure
 	ism.priorityQueue.Update(item, item.Priority)
 }
-
-// TODO: Move this logic to ClientEndJob using canceled boolean
-// RequestCancelled tells the manager that a request is cancelled.
-// func (ism *Manager) RequestCancelled(id string) {
-// 	d, existantDevice := ism.devices.Load(id)
-// 	if !existantDevice {
-// 		return
-// 	}
-
-// 	device := d.(*DeviceScore)
-
-// 	// decrement pendingRequestsCount. panic if it becomes negative, since this should NEVER happen. TODO: Use atomiccounter
-// 	if atomic.AddUint64(&device.pendingRequestsCount, ^uint64(0)) < 0 {
-// 		panic("negative pendingRequestsCount")
-// 	}
-
-// 	item := &Item{
-// 		Priority: device.Score(),
-// 		ID:       id,
-// 	}
-
-// 	// Update the heap structure
-// 	ism.priorityQueue.Update(item, item.Priority)
-// }
 
 // Dump dumps the current manager status to stdout
 func (ism *Manager) Dump() {
@@ -202,7 +189,7 @@ func (ism *Manager) avgResponseTime() uint64 {
 	return ism.AverageResponseTime.Get()
 }
 
-// New creates a new impact score manager
+// NewImpactScore creates a new impact score manager
 func NewImpactScore() ScoreEngine {
 	pq := NewPriorityQueue()
 	ism := &Manager{
