@@ -93,15 +93,15 @@ func (ism *Manager) RemoveClient(key string) {
 }
 
 // ClientStartJob tells the manager that a new request is sent to device `id`
-func (ism *Manager) ClientStartJob(id string, count uint64) {
+func (ism *Manager) ClientStartJob(id string) {
 	var device *DeviceScore
 
 	d, existantDevice := ism.devices.Load(id)
 	if !existantDevice {
 		device = &DeviceScore{
-			handledRequestsCount: count,
+			handledRequestsCount: 1,
 			averageResponse:      ism.avgResponseTime(),
-			pendingRequestsCount: count,
+			pendingRequestsCount: 1,
 		}
 		ism.devices.Store(id, device)
 	} else {

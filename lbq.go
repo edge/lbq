@@ -18,8 +18,8 @@ type ScoreEngine interface {
 	AddClientWithContext(ctx context.Context, key string) bool
 	// RemoveClient removes a client by key.
 	RemoveClient(key string)
-	// ClientStartJob tells the score manager that a client has started one or more jobs.
-	ClientStartJob(key string, count uint64)
+	// ClientStartJob tells the score manager that a client has started a job.
+	ClientStartJob(key string)
 	// ClientEndJob tells the score engine that a job has been completed. Used for both canceled and successful jobs.
 	ClientEndJob(key string, canceled bool, timeTaken time.Duration)
 	// Reset clears all score and client data.
