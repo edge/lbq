@@ -71,11 +71,9 @@ func (pq *PriorityQueue) Peek() interface{} {
 
 func (pq *PriorityQueue) peek() interface{} {
 	old := *pq
-	if n := len(old); n > 0 {
-		return old[n-1]
-	}
-
-	return nil
+	n := len(old)
+	item := old[n-1]
+	return item
 }
 
 func (pq *PriorityQueue) Pop() interface{} {
@@ -110,7 +108,7 @@ func (pq *PriorityQueue) update(item *Item, priority int) {
 	heap.Fix(pq, item.index)
 }
 
-// PriorityQueue returns a new PriorityQueue
+// NewPriorityQueue returns a new PriorityQueue
 func NewPriorityQueue() *PriorityQueue {
 	pq := make(PriorityQueue, 0)
 	heap.Init(&pq)

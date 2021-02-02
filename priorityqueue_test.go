@@ -88,7 +88,7 @@ import (
 // }
 
 func TestImpactPeek(t *testing.T) {
-	pq := New()
+	pq := NewPriorityQueue()
 
 	pq.Push(&Item{
 		ID:       "host_3",
@@ -114,5 +114,5 @@ func TestImpactPeek(t *testing.T) {
 	fmt.Printf("pop: %v\n", pq.Pop().(*Item).Priority)
 	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
 	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
-	// fmt.Printf("peek: %v\n", pq.Peek().Priority)
+	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
 }

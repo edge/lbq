@@ -23,9 +23,9 @@ type Manager struct {
 }
 
 type DeviceScore struct {
-	pendingRequestsCount uint64
-	handledRequestsCount uint64
-	averageResponse      uint64
+	pendingRequestsCount uint64 // change to *atomiccounter.Counter
+	handledRequestsCount uint64 // change to *atomiccounter.Counter
+	averageResponse      uint64 // change to *atomiccounter.Counter
 }
 
 // Score returns the device score
@@ -36,14 +36,15 @@ func (d *DeviceScore) Score() int {
 // addRequest updates the global manager metrics.
 func (ism *Manager) addRequest(duration time.Duration) {
 	d := uint64(duration)
-	for {
-		count := ism.RequestCount.Get()
-		oldV := ism.AverageResponseTime.Get()
-		newV := uint64(math.Round(float64(oldV*count+d) / float64(count+1)))
-		if atomic.CompareAndSwapUint64((*uint64)(ism.AverageResponseTime), oldV, newV) {
-			break
-		}
-	}
+	// for {
+	count := ism.RequestCount.Get()
+	oldV := ism.AverageResponseTime.Get()
+	newV := uint64(math.Round(float64(oldV*count+d) / float64(count+1)))
+	ism.AverageResponseTime.Set(newV)
+	// if atomic.CompareAndSwapUint64((*uint64)(ism.AverageResponseTime), oldV, newV) {
+	// break
+	// }
+	// }
 
 	ism.RequestCount.Inc()
 }
