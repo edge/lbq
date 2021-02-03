@@ -36,15 +36,15 @@ func (d *DeviceScore) Score() int {
 // addRequest updates the global manager metrics.
 func (ism *Manager) addRequest(duration time.Duration) {
 	d := uint64(duration)
-	// for {
-	count := ism.RequestCount.Get()
-	oldV := ism.AverageResponseTime.Get()
-	newV := uint64(math.Round(float64(oldV*count+d) / float64(count+1)))
-	ism.AverageResponseTime.Set(newV)
-	// if atomic.CompareAndSwapUint64((*uint64)(ism.AverageResponseTime), oldV, newV) {
-	// break
-	// }
-	// }
+	for {
+		count := ism.RequestCount.Get()
+		oldV := ism.AverageResponseTime.Get()
+		newV := uint64(math.Round(float64(oldV*count+d) / float64(count+1)))
+		// ism.AverageResponseTime.Set(newV)
+		if atomic.CompareAndSwapUint64((*uint64)(ism.AverageResponseTime), oldV, newV) {
+			break
+		}
+	}
 
 	ism.RequestCount.Inc()
 }
@@ -117,13 +117,8 @@ func (ism *Manager) ClientStartJob(id string) {
 		ID:       id,
 	}
 
-	if !existantDevice {
-		ism.priorityQueue.Push(item)
-		return
-	}
-
 	// Update the heap structure
-	ism.priorityQueue.Update(item, item.Priority)
+	ism.priorityQueue.Push(item)
 }
 
 // ClientEndJob tells the manager that device `id` finished handling a request
@@ -159,6 +154,8 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 		atomic.AddUint64(&device.handledRequestsCount, 1)
 	}
 
+	fmt.Println(":::::ADD", device.Score())
+
 	item := &Item{
 		Priority: device.Score(),
 		ID:       id,
@@ -166,15 +163,10 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 
 	if !canceled {
 		ism.addRequest(responseTime)
-
-		if !existantDevice {
-			ism.priorityQueue.Push(item)
-			return
-		}
 	}
 
 	// Update the heap structure
-	ism.priorityQueue.Update(item, item.Priority)
+	ism.priorityQueue.Push(item)
 }
 
 // Dump dumps the current manager status to stdout

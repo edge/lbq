@@ -3,6 +3,8 @@ package lbq
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // func TestImpactScoreManager_NewRequest(t *testing.T) {
@@ -90,29 +92,45 @@ import (
 func TestImpactPeek(t *testing.T) {
 	pq := NewPriorityQueue()
 
-	pq.Push(&Item{
+	itm := &Item{
 		ID:       "host_3",
-		Priority: 2,
-	})
+		Priority: 4,
+	}
+	pq.Push(itm)
 
-	pq.Push(&Item{
+	itm2 := &Item{
 		ID:       "host_2",
-		Priority: 3,
-	})
+		Priority: 2,
+	}
+	pq.Push(itm2)
 
-	pq.Push(&Item{
+	itm3 := &Item{
 		ID:       "host_1",
+		Priority: 3,
+	}
+	pq.Push(itm3)
+
+	itm4 := &Item{
+		ID:       "host_4",
 		Priority: 1,
+	}
+
+	pq.Push(itm4)
+
+	fmt.Printf("peek 1: %v %d\n", pq.Peek().(*Item).ID, pq.Peek().(*Item).Priority)
+	fmt.Printf("peek 2: %v %d\n", pq.Peek().(*Item).ID, pq.Peek().(*Item).Priority)
+	fmt.Printf("peek 3: %v %d\n", pq.Peek().(*Item).ID, pq.Peek().(*Item).Priority)
+	fmt.Printf("peek 4: %v %d\n", pq.Peek().(*Item).ID, pq.Peek().(*Item).Priority)
+	pq.Push(&Item{
+		ID:       "host_4",
+		Priority: 5,
 	})
+	fmt.Printf("peek 5: %v %d\n", pq.Peek().(*Item).ID, pq.Peek().(*Item).Priority)
 
 	pq.Push(&Item{
 		ID:       "host_4",
 		Priority: 0,
 	})
-
-	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
-	fmt.Printf("pop: %v\n", pq.Pop().(*Item).Priority)
-	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
-	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
-	fmt.Printf("pop: %v\n", pq.Peek().(*Item).Priority)
+	fmt.Printf("peek 6: %v %d\n", pq.Peek().(*Item).ID, pq.Peek().(*Item).Priority)
+	assert.Equal(t, 4, pq.Len())
 }
