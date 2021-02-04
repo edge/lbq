@@ -154,8 +154,6 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 		atomic.AddUint64(&device.handledRequestsCount, 1)
 	}
 
-	fmt.Println(":::::ADD", device.Score())
-
 	item := &Item{
 		Priority: device.Score(),
 		ID:       id,
