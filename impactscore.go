@@ -86,7 +86,7 @@ func (ism *Manager) AddClientWithContext(ctx context.Context, key string) chan i
 	}
 
 	ism.priorityQueue.Push(item)
-	return true
+	return device.requestChan
 }
 
 // AddClient add a new host.
@@ -135,7 +135,7 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 		if canceled {
 			return
 		}
-		device = newDevice(1)
+		device = ism.newDevice(1)
 		ism.devices.Store(id, device)
 	} else {
 		device = d.(*Device)
