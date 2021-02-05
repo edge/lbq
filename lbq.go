@@ -13,9 +13,9 @@ type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
 	Next() (key string, score int, err error)
 	// AddClient adds a new client and returns false if the insert failed.
-	AddClient(key string) bool
+	AddClient(key string) chan interface{}
 	// AddClientWithContext inserts a client into the score engine with a context.
-	AddClientWithContext(ctx context.Context, key string) bool
+	AddClientWithContext(ctx context.Context, key string) chan interface{}
 	// RemoveClient removes a client by key.
 	RemoveClient(key string)
 	// ClientStartJob tells the score manager that a client has started a job.

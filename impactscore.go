@@ -18,18 +18,19 @@ type Manager struct {
 	AverageResponseTime *atomiccounter.Counter
 	RequestCount        *atomiccounter.Counter
 
-	devices       sync.Map // [string]*DeviceScore
+	devices       sync.Map // [string]*Device
 	priorityQueue *PriorityQueue
 }
 
-type DeviceScore struct {
+type Device struct {
+	requestChan          chan interface{}
 	pendingRequestsCount uint64 // change to *atomiccounter.Counter
 	handledRequestsCount uint64 // change to *atomiccounter.Counter
 	averageResponse      uint64 // change to *atomiccounter.Counter
 }
 
 // Score returns the device score
-func (d *DeviceScore) Score() int {
+func (d *Device) Score() int {
 	return int(d.averageResponse * (d.pendingRequestsCount + 1))
 }
 
@@ -58,20 +59,25 @@ func (ism *Manager) Next() (string, int, error) {
 	return i.ID, i.Priority, nil
 }
 
+func (ism *Manager) newDevice(count int) *Device {
+	return &Device{
+		requestChan:          make(chan interface{}, 0),
+		handledRequestsCount: count,
+		averageResponse:      ism.avgResponseTime(),
+		pendingRequestsCount: count,
+	}
+}
+
 // AddClientWithContext adds the client to the device store, with a context.
-func (ism *Manager) AddClientWithContext(ctx context.Context, key string) bool {
+func (ism *Manager) AddClientWithContext(ctx context.Context, key string) chan interface{} {
 	fmt.Printf("scoreManager: adding host %q\n", key)
 
 	if _, existantDevice := ism.devices.Load(key); existantDevice {
 		fmt.Printf("scoreManager: client already exists: %q\n", key)
-		return !existantDevice
+		return nil
 	}
 
-	device := &DeviceScore{
-		handledRequestsCount: 0,
-		averageResponse:      ism.avgResponseTime(),
-		pendingRequestsCount: 0,
-	}
+	device := ism.newDevice(0)
 	ism.devices.Store(key, device)
 
 	item := &Item{
@@ -84,7 +90,7 @@ func (ism *Manager) AddClientWithContext(ctx context.Context, key string) bool {
 }
 
 // AddClient add a new host.
-func (ism *Manager) AddClient(key string) bool {
+func (ism *Manager) AddClient(key string) chan interface{} {
 	return ism.AddClientWithContext(context.Background(), key)
 }
 
@@ -95,18 +101,14 @@ func (ism *Manager) RemoveClient(key string) {
 
 // ClientStartJob tells the manager that a new request is sent to device `id`
 func (ism *Manager) ClientStartJob(id string) {
-	var device *DeviceScore
+	var device *Device
 
 	d, existantDevice := ism.devices.Load(id)
 	if !existantDevice {
-		device = &DeviceScore{
-			handledRequestsCount: 1,
-			averageResponse:      ism.avgResponseTime(),
-			pendingRequestsCount: 1,
-		}
+		device = ism.newDevice(1)
 		ism.devices.Store(id, device)
 	} else {
-		device = d.(*DeviceScore)
+		device = d.(*Device)
 	}
 
 	// increment pendingRequestsCount.
@@ -123,7 +125,7 @@ func (ism *Manager) ClientStartJob(id string) {
 
 // ClientEndJob tells the manager that device `id` finished handling a request
 func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Duration) {
-	var device *DeviceScore
+	var device *Device
 
 	d, existantDevice := ism.devices.Load(id)
 
@@ -133,14 +135,10 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 		if canceled {
 			return
 		}
-		device = &DeviceScore{
-			handledRequestsCount: 0,
-			averageResponse:      ism.avgResponseTime(),
-			pendingRequestsCount: 0,
-		}
+		device = newDevice(1)
 		ism.devices.Store(id, device)
 	} else {
-		device = d.(*DeviceScore)
+		device = d.(*Device)
 	}
 
 	// decrement pendingRequestsCount. panic if it becomes negative, since this should NEVER happen.
@@ -171,7 +169,7 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 func (ism *Manager) Dump() {
 	ism.devices.Range(func(key, value interface{}) bool {
 		d := key.(string)
-		v := value.(*DeviceScore)
+		v := value.(*Device)
 		fmt.Printf("device %s | avg response %d | pending %d | score %d\n", d, v.averageResponse, v.pendingRequestsCount, v.Score())
 		return true
 	})
