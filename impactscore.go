@@ -59,7 +59,7 @@ func (ism *Manager) Next() (string, int, error) {
 	return i.ID, i.Priority, nil
 }
 
-func (ism *Manager) newDevice(count int) *Device {
+func (ism *Manager) newDevice(count uint64) *Device {
 	return &Device{
 		requestChan:          make(chan interface{}, 0),
 		handledRequestsCount: count,
