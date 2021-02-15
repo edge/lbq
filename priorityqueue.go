@@ -16,11 +16,12 @@ type Item struct {
 // A PriorityQueue implements heap.Interface and holds Items.
 type PriorityQueue struct {
 	sync.RWMutex
-	quitChan     chan bool
-	heapPushChan chan heapPushScoreChan
-	heapPopChan  chan heapPopScoreChan
-	heapPeekChan chan heapPopScoreChan
-	items        PriorityQueueItems
+	quitChan       chan bool
+	heapPushChan   chan heapPushScoreChan
+	heapPopChan    chan heapPopScoreChan
+	heapPeekChan   chan heapPopScoreChan
+	heapRemoveChan chan heapRemoveScoreChan
+	items          PriorityQueueItems
 }
 
 // A PriorityQueueItems implements heap.Interface and holds Items.
@@ -32,6 +33,10 @@ type heapPushScoreChan struct {
 
 type heapPopScoreChan struct {
 	result interface{}
+}
+
+type heapRemoveScoreChan struct {
+	id interface{}
 }
 
 func (pq PriorityQueue) Len() int {
@@ -51,6 +56,36 @@ func (pq PriorityQueue) Swap(i, j int) {
 	pq.items[j].index = j
 }
 
+func (pq *PriorityQueue) Remove(id string) {
+	pq.heapRemoveChan <- heapRemoveScoreChan{id}
+}
+
+func (pq *PriorityQueue) remove(x interface{}) {
+	pq.Lock()
+	defer pq.Unlock()
+	id := x.(string)
+	var found *Item
+
+	for _, v := range pq.items {
+		if v.ID == id {
+			found = v
+			break
+		}
+	}
+
+	// Remove found item
+	pq.items = pq.items[:found.index+copy(pq.items[found.index:], pq.items[found.index+1:])]
+
+	// Reset indexes
+	for _, v := range pq.items {
+		if v.index > found.index {
+			v.index--
+		}
+	}
+
+	heap.Init(pq)
+}
+
 func (pq *PriorityQueue) Push(item interface{}) {
 	pq.heapPushChan <- heapPushScoreChan{item}
 }
@@ -59,7 +94,6 @@ func (pq *PriorityQueue) push(x interface{}) {
 	pq.Lock()
 	defer pq.Unlock()
 	item := x.(*Item)
-
 	exists := false
 
 	// Overwrite priority and index if the entry exists.
@@ -119,10 +153,11 @@ func (pq *PriorityQueue) pop() interface{} {
 func NewPriorityQueue() *PriorityQueue {
 	pqi := make(PriorityQueueItems, 0)
 	pq := PriorityQueue{
-		items:        pqi,
-		heapPushChan: make(chan heapPushScoreChan),
-		heapPopChan:  make(chan heapPopScoreChan),
-		heapPeekChan: make(chan heapPopScoreChan),
+		items:          pqi,
+		heapPushChan:   make(chan heapPushScoreChan),
+		heapPopChan:    make(chan heapPopScoreChan),
+		heapPeekChan:   make(chan heapPopScoreChan),
+		heapRemoveChan: make(chan heapRemoveScoreChan),
 	}
 	heap.Init(&pq)
 	pq.quitChan = pq.watchHeapOps()
@@ -148,6 +183,8 @@ func (pq *PriorityQueue) watchHeapOps() chan bool {
 				popScore.result.(chan interface{}) <- pq.pop()
 			case peekScore := <-pq.heapPeekChan:
 				peekScore.result.(chan interface{}) <- pq.peek()
+			case removeScore := <-pq.heapRemoveChan:
+				pq.remove(removeScore.id)
 			}
 
 		}

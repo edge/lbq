@@ -97,6 +97,7 @@ func (ism *Manager) AddClient(key string) chan interface{} {
 // RemoveClient removes the client from the score engine.
 func (ism *Manager) RemoveClient(key string) {
 	ism.devices.Delete(key)
+	ism.priorityQueue.Remove(key)
 }
 
 // ClientStartJob tells the manager that a new request is sent to device `id`
