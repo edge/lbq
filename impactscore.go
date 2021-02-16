@@ -5,25 +5,29 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/edge/atomiccounter"
+	"github.com/edge/atomicstore"
 )
 
-var ErrNoResults = errors.New("There are no scored items")
+var (
+	ErrDeviceMissing = errors.New("Unable to find device")
+	ErrNoResults     = errors.New("There are no scored items")
+)
 
 type Manager struct {
 	AverageResponseTime *atomiccounter.Counter
 	RequestCount        *atomiccounter.Counter
 
-	devices       sync.Map // [string]*Device
+	devices       *atomicstore.Store
 	priorityQueue *PriorityQueue
 }
 
 type Device struct {
-	requestChan          chan interface{}
+	ID                   string
+	jobChan              chan interface{}
 	pendingRequestsCount uint64 // change to *atomiccounter.Counter
 	handledRequestsCount uint64 // change to *atomiccounter.Counter
 	averageResponse      uint64 // change to *atomiccounter.Counter
@@ -32,6 +36,10 @@ type Device struct {
 // Score returns the device score
 func (d *Device) Score() int {
 	return int(d.averageResponse * (d.pendingRequestsCount + 1))
+}
+
+func (d *Device) DoJob(r interface{}) {
+	d.jobChan <- r
 }
 
 // addRequest updates the global manager metrics.
@@ -51,34 +59,44 @@ func (ism *Manager) addRequest(duration time.Duration) {
 }
 
 // Next returns the next Host that should handle a request
-func (ism *Manager) Next() (string, int, error) {
+func (ism *Manager) Next() (*Device, int, error) {
 	if ism.priorityQueue.Len() == 0 {
-		return "", 0, ErrNoResults
+		return nil, 0, ErrNoResults
 	}
 	i := ism.priorityQueue.Peek().(*Item)
-	return i.ID, i.Priority, nil
+	if d, exists := ism.devices.Get(i.ID); exists {
+		return d.(*Device), i.Priority, nil
+	}
+	return nil, 0, ErrDeviceMissing
 }
 
-func (ism *Manager) newDevice(count uint64) *Device {
+func (ism *Manager) newDevice(id string, count uint64) *Device {
 	return &Device{
-		requestChan:          make(chan interface{}, 0),
+		ID:                   id,
+		jobChan:              make(chan interface{}, 0),
 		handledRequestsCount: count,
 		averageResponse:      ism.avgResponseTime(),
 		pendingRequestsCount: count,
 	}
 }
 
+// removeOnContextClose removes the device when a context is closed.
+func (ism *Manager) removeOnContextClose(ctx context.Context, device *Device) {
+	<-ctx.Done()
+	close(device.jobChan)
+	ism.RemoveClient(device.ID)
+}
+
 // AddClientWithContext adds the client to the device store, with a context.
 func (ism *Manager) AddClientWithContext(ctx context.Context, key string) chan interface{} {
 	fmt.Printf("scoreManager: adding host %q\n", key)
 
-	if _, existantDevice := ism.devices.Load(key); existantDevice {
+	device := ism.newDevice(key, 0)
+
+	if _, existantDevice := ism.devices.Upsert(key, device); existantDevice {
 		fmt.Printf("scoreManager: client already exists: %q\n", key)
 		return nil
 	}
-
-	device := ism.newDevice(0)
-	ism.devices.Store(key, device)
 
 	item := &Item{
 		Priority: device.Score(),
@@ -86,7 +104,8 @@ func (ism *Manager) AddClientWithContext(ctx context.Context, key string) chan i
 	}
 
 	ism.priorityQueue.Push(item)
-	return device.requestChan
+	go ism.removeOnContextClose(ctx, device)
+	return device.jobChan
 }
 
 // AddClient add a new host.
@@ -102,21 +121,15 @@ func (ism *Manager) RemoveClient(key string) {
 
 // ClientStartJob tells the manager that a new request is sent to device `id`
 func (ism *Manager) ClientStartJob(id string) {
-	var device *Device
-
-	d, existantDevice := ism.devices.Load(id)
-	if !existantDevice {
-		device = ism.newDevice(1)
-		ism.devices.Store(id, device)
-	} else {
-		device = d.(*Device)
-	}
+	device := ism.newDevice(id, 1)
+	found, _ := ism.devices.Upsert(id, device)
+	d := found.(*Device)
 
 	// increment pendingRequestsCount.
-	atomic.AddUint64(&device.pendingRequestsCount, 1)
+	atomic.AddUint64(&d.pendingRequestsCount, 1)
 
 	item := &Item{
-		Priority: device.Score(),
+		Priority: d.Score(),
 		ID:       id,
 	}
 
@@ -126,35 +139,23 @@ func (ism *Manager) ClientStartJob(id string) {
 
 // ClientEndJob tells the manager that device `id` finished handling a request
 func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Duration) {
-	var device *Device
-
-	d, existantDevice := ism.devices.Load(id)
-
-	if !existantDevice {
-		// If this is a canceled job and the device doesn't exist
-		// there is no need to proceed with scoring.
-		if canceled {
-			return
-		}
-		device = ism.newDevice(1)
-		ism.devices.Store(id, device)
-	} else {
-		device = d.(*Device)
-	}
+	device := ism.newDevice(id, 1)
+	found, _ := ism.devices.Upsert(id, device)
+	d := found.(*Device)
 
 	// decrement pendingRequestsCount. panic if it becomes negative, since this should NEVER happen.
-	if atomic.AddUint64(&device.pendingRequestsCount, ^uint64(0)) < 0 {
+	if atomic.AddUint64(&d.pendingRequestsCount, ^uint64(0)) < 0 {
 		panic("negative pendingRequestsCount")
 	}
 
 	// update average response time and increment handled count, unless this is a canceled request.
 	if !canceled {
-		device.averageResponse = ((device.averageResponse * device.handledRequestsCount) + uint64(responseTime)) / (device.handledRequestsCount + 1)
-		atomic.AddUint64(&device.handledRequestsCount, 1)
+		d.averageResponse = ((d.averageResponse * d.handledRequestsCount) + uint64(responseTime)) / (d.handledRequestsCount + 1)
+		atomic.AddUint64(&d.handledRequestsCount, 1)
 	}
 
 	item := &Item{
-		Priority: device.Score(),
+		Priority: d.Score(),
 		ID:       id,
 	}
 
@@ -189,6 +190,7 @@ func (ism *Manager) avgResponseTime() uint64 {
 func NewImpactScore() ScoreEngine {
 	pq := NewPriorityQueue()
 	ism := &Manager{
+		devices:             atomicstore.New(false),
 		AverageResponseTime: atomiccounter.New(),
 		RequestCount:        atomiccounter.New(),
 		priorityQueue:       pq,

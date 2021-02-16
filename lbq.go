@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"github.com/edge/atomicstore"
 )
 
 // ScoreEngine represents a client <> job scoring engine.
 type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
-	Next() (key string, score int, err error)
+	Next() (device *Device, score int, err error)
 	// AddClient adds a new client and returns false if the insert failed.
 	AddClient(key string) chan interface{}
 	// AddClientWithContext inserts a client into the score engine with a context.
@@ -37,19 +35,51 @@ var (
 
 // Queue is a atomic data store with a load balancer.
 type Queue struct {
-	jobs *atomicstore.Store
+	jobs chan *job
 	ScoreEngine
 }
 
+type job struct {
+	payload interface{}
+	ctx     context.Context
+}
+
 func (q *Queue) server(ctx context.Context) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case j := <-q.jobs:
+				// This job has closed.
+				if j.ctx.Err() != nil {
+					continue
+				}
+				q.deviceJob(j)
+			}
+		}
+	}()
 	// TODO: watch jobs for change
 	// TODO: Get device with q.ScoreEngine.Next()
 	// TODO: Send request to devices request chan
 }
 
+func (q *Queue) deviceJob(j *job) {
+	if d, _, err := q.ScoreEngine.Next(); err == nil {
+		d.DoJob(j.payload)
+	}
+}
+
 func (q *Queue) setDefaults() {
 	if q.ScoreEngine == nil {
 		q.ScoreEngine = defaultLoadBalancer
+	}
+}
+
+func (q *Queue) Do(j interface{}, ctx context.Context) {
+	q.jobs <- &job{
+		payload: j,
+		ctx:     ctx,
 	}
 }
 
@@ -77,6 +107,6 @@ func (q *Queue) Start() {
 // New creates a new instance of queue.
 func New() *Queue {
 	return &Queue{
-		jobs: atomicstore.New(true),
+		jobs: make(chan *job, 0),
 	}
 }
