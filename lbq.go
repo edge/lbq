@@ -66,6 +66,7 @@ func (q *Queue) server(ctx context.Context) {
 
 func (q *Queue) deviceJob(j *job) {
 	device, _, err := q.ScoreEngine.Next()
+	fmt.Println("Device", device.ID)
 	if err != nil {
 		fmt.Println("NO DEVICE: ADD BACK TO QUEUE")
 		time.Sleep(10 * time.Millisecond)
