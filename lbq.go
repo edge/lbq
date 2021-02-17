@@ -88,7 +88,7 @@ func (q *Queue) setDefaults() {
 }
 
 // Do runs a job.
-func (q *Queue) Do(j interface{}, ctx context.Context) {
+func (q *Queue) Do(ctx context.Context, j interface{}) {
 	if ok := q.ScoreEngine.WaitForClients(ctx); !ok {
 		return
 	}
