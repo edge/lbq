@@ -30,8 +30,6 @@ type ScoreEngine interface {
 }
 
 var (
-	defaultLoadBalancer = NewImpactScore()
-
 	// ErrSetEngineAfterStart is thrown when an attempt to set an engine is made following a queue start.
 	ErrSetEngineAfterStart = errors.New("ScoreEngine can't be changed after Start has been called")
 )
@@ -83,7 +81,7 @@ func (q *Queue) deviceJob(j *job) {
 
 func (q *Queue) setDefaults() {
 	if q.ScoreEngine == nil {
-		q.ScoreEngine = defaultLoadBalancer
+		q.ScoreEngine = NewImpactScore()
 	}
 }
 

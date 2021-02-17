@@ -40,14 +40,12 @@ type heapRemoveScoreChan struct {
 }
 
 func (pq PriorityQueue) Len() int {
-	// pq.Lock()
-	// defer pq.Unlock()
 	size := len(pq.items)
 	return size
 }
 
 func (pq PriorityQueue) Less(i, j int) bool {
-	return pq.items[j].Priority < pq.items[i].Priority
+	return pq.items[i].Priority > pq.items[j].Priority
 }
 
 func (pq PriorityQueue) Swap(i, j int) {
@@ -56,6 +54,7 @@ func (pq PriorityQueue) Swap(i, j int) {
 	pq.items[j].index = j
 }
 
+// Remove removes an item from the queue.
 func (pq *PriorityQueue) Remove(id string) {
 	pq.heapRemoveChan <- heapRemoveScoreChan{id}
 }
@@ -86,6 +85,7 @@ func (pq *PriorityQueue) remove(x interface{}) {
 	heap.Init(pq)
 }
 
+// Push adds an item to the heap.
 func (pq *PriorityQueue) Push(item interface{}) {
 	pq.heapPushChan <- heapPushScoreChan{item}
 }
@@ -151,9 +151,8 @@ func (pq *PriorityQueue) pop() interface{} {
 
 // NewPriorityQueue returns a new PriorityQueue
 func NewPriorityQueue() *PriorityQueue {
-	pqi := make(PriorityQueueItems, 0)
 	pq := PriorityQueue{
-		items:          pqi,
+		items:          make(PriorityQueueItems, 0),
 		heapPushChan:   make(chan heapPushScoreChan),
 		heapPopChan:    make(chan heapPopScoreChan),
 		heapPeekChan:   make(chan heapPopScoreChan),
