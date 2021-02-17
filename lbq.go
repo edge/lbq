@@ -3,6 +3,7 @@ package lbq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -10,10 +11,12 @@ import (
 type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
 	Next() (device *Device, score int, err error)
+	// WaitForClients waits if there are not enough clients.
+	WaitForClients(ctx context.Context) bool
 	// AddClient adds a new client and returns false if the insert failed.
-	AddClient(key string) chan interface{}
+	AddClient(key string) *Device
 	// AddClientWithContext inserts a client into the score engine with a context.
-	AddClientWithContext(ctx context.Context, key string) chan interface{}
+	AddClientWithContext(ctx context.Context, key string) *Device
 	// RemoveClient removes a client by key.
 	RemoveClient(key string)
 	// ClientStartJob tells the score manager that a client has started a job.
@@ -55,18 +58,25 @@ func (q *Queue) server(ctx context.Context) {
 				if j.ctx.Err() != nil {
 					continue
 				}
-				q.deviceJob(j)
+				go q.deviceJob(j)
 			}
 		}
 	}()
-	// TODO: watch jobs for change
-	// TODO: Get device with q.ScoreEngine.Next()
-	// TODO: Send request to devices request chan
 }
 
 func (q *Queue) deviceJob(j *job) {
-	if d, _, err := q.ScoreEngine.Next(); err == nil {
-		d.DoJob(j.payload)
+	device, _, err := q.ScoreEngine.Next()
+	if err != nil {
+		fmt.Println("NO DEVICE: ADD BACK TO QUEUE")
+		time.Sleep(10 * time.Millisecond)
+		q.jobs <- j
+		return
+	}
+	if err := device.DoJob(j.payload); err != nil {
+		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
+		time.Sleep(10 * time.Millisecond)
+		q.jobs <- j
+		return
 	}
 }
 
@@ -76,7 +86,12 @@ func (q *Queue) setDefaults() {
 	}
 }
 
+// Do runs a job.
 func (q *Queue) Do(j interface{}, ctx context.Context) {
+	if ok := q.ScoreEngine.WaitForClients(ctx); !ok {
+		return
+	}
+
 	q.jobs <- &job{
 		payload: j,
 		ctx:     ctx,
