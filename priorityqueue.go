@@ -80,7 +80,6 @@ func (pq *PriorityQueue) remove(x interface{}) {
 			v.index--
 		}
 	}
-
 	heap.Init(pq)
 }
 
@@ -93,24 +92,22 @@ func (pq *PriorityQueue) push(x interface{}) {
 	pq.Lock()
 	defer pq.Unlock()
 	item := x.(*Item)
-	exists := false
 
 	// Overwrite priority and index if the entry exists.
 	for _, v := range pq.PriorityQueueItems {
 		if v.ID == item.ID {
 			v.Priority = item.Priority
-			item.index = v.index
-			exists = true
-			break
+			heap.Fix(pq, v.index)
+			return
 		}
 	}
 
-	if !exists {
-		item.index = 0
-		pq.PriorityQueueItems = append(pq.PriorityQueueItems, item)
+	item.index = 0
+	// Increase indexes
+	for _, v := range pq.PriorityQueueItems {
+		v.index++
 	}
-
-	heap.Fix(pq, item.index)
+	pq.PriorityQueueItems = append(PriorityQueueItems{item}, pq.PriorityQueueItems...)
 }
 
 // Peek returns the top of the list item without popping it.
