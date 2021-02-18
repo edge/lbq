@@ -75,14 +75,14 @@ func (q *Queue) sendToNextDevice(j *job) {
 		}()
 		return
 	}
-	go q.sendToDevice(device, j.payload)
+	go q.sendToDevice(device, j)
 }
 
-func (q *Queue) sendToDevice(d *Device, payload interface{}) {
-	if err := d.DoJob(payload); err != nil {
+func (q *Queue) sendToDevice(d *Device, j *job) {
+	if err := d.DoJob(j.payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
 		time.Sleep(10 * time.Millisecond)
-		q.jobs <- payload
+		q.jobs <- j
 		return
 	}
 }
@@ -100,18 +100,20 @@ func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) {
 		return
 	}
 
+	deviceJob := &job{
+		payload: payload,
+		ctx:     ctx,
+	}
+
 	if deviceID != "" {
 		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
 			device := d.(*Device)
-			go q.sendToDevice(device, payload)
+			go q.sendToDevice(device, deviceJob)
 			return
 		}
 	}
 
-	q.jobs <- &job{
-		payload: payload,
-		ctx:     ctx,
-	}
+	q.jobs <- deviceJob
 }
 
 // StartWithContext starts the queue service with a supplied context.
