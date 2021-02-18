@@ -58,21 +58,28 @@ func (q *Queue) server(ctx context.Context) {
 				if j.ctx.Err() != nil {
 					continue
 				}
-				go q.deviceJob(j)
+				q.sendToNextDevice(j)
 			}
 		}
 	}()
 }
 
-func (q *Queue) deviceJob(j *job) {
+func (q *Queue) sendToNextDevice(j *job) {
 	device, _, err := q.ScoreEngine.Next()
 	if err != nil {
 		fmt.Println("NO DEVICE: ADD BACK TO QUEUE")
-		time.Sleep(10 * time.Millisecond)
-		q.jobs <- j
+		// Wait for a short time before adding back to the queue.
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			q.jobs <- j
+		}()
 		return
 	}
-	if err := device.DoJob(j.payload); err != nil {
+	go q.sendToDevice(device, j.payload)
+}
+
+func (q *Queue) sendToDevice(d *Device, payload interface{}) {
+	if err := device.DoJob(payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
 		time.Sleep(10 * time.Millisecond)
 		q.jobs <- j
@@ -87,26 +94,24 @@ func (q *Queue) setDefaults() {
 }
 
 // Do runs a job.
-func (q *Queue) Do(ctx context.Context, j interface{}, deviceId string) {
+func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) {
 	// Wait for at least one device.
 	if ok := q.ScoreEngine.WaitForClients(ctx); !ok {
 		return
 	}
 
-	job := &job{
-		payload: j,
-		ctx:     ctx,
-	}
-
-	if deviceId != "" {
-		if d, ok := q.ScoreEngine.GetDevice(deviceId); ok {
+	if deviceID != "" {
+		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
 			device := d.(*Device)
-			device.JobChan() <- job
+			go sendToDevice(device, payload)
 			return
 		}
 	}
 
-	q.jobs <- job
+	q.jobs <- &job{
+		payload: payload,
+		ctx:     ctx,
+	}
 }
 
 // StartWithContext starts the queue service with a supplied context.
