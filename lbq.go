@@ -79,10 +79,10 @@ func (q *Queue) sendToNextDevice(j *job) {
 }
 
 func (q *Queue) sendToDevice(d *Device, payload interface{}) {
-	if err := device.DoJob(payload); err != nil {
+	if err := d.DoJob(payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
 		time.Sleep(10 * time.Millisecond)
-		q.jobs <- j
+		q.jobs <- payload
 		return
 	}
 }
@@ -103,7 +103,7 @@ func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) {
 	if deviceID != "" {
 		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
 			device := d.(*Device)
-			go sendToDevice(device, payload)
+			go q.sendToDevice(device, payload)
 			return
 		}
 	}
