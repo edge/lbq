@@ -216,6 +216,11 @@ func (ism *Manager) ClientEndJob(id string, canceled bool, responseTime time.Dur
 	ism.priorityQueue.Push(item)
 }
 
+// GetDevice gets a device by ID.
+func (ism *Manager) GetDevice(key string) (interface{}, bool) {
+	return ism.devices.Get(key)
+}
+
 // Dump dumps the current manager status to stdout
 func (ism *Manager) Dump() {
 	ism.devices.Range(func(key, value interface{}) bool {

@@ -23,6 +23,8 @@ type ScoreEngine interface {
 	ClientStartJob(key string)
 	// ClientEndJob tells the score engine that a job has been completed. Used for both canceled and successful jobs.
 	ClientEndJob(key string, canceled bool, timeTaken time.Duration)
+
+	GetDevice(key string) (interface{}, bool)
 	// Reset clears all score and client data.
 	Reset()
 	// Dump dumps the current status to stdout.
@@ -64,7 +66,6 @@ func (q *Queue) server(ctx context.Context) {
 
 func (q *Queue) deviceJob(j *job) {
 	device, _, err := q.ScoreEngine.Next()
-	fmt.Println("Device", device.ID)
 	if err != nil {
 		fmt.Println("NO DEVICE: ADD BACK TO QUEUE")
 		time.Sleep(10 * time.Millisecond)
@@ -86,15 +87,26 @@ func (q *Queue) setDefaults() {
 }
 
 // Do runs a job.
-func (q *Queue) Do(ctx context.Context, j interface{}) {
+func (q *Queue) Do(ctx context.Context, j interface{}, deviceId string) {
+	// Wait for at least one device.
 	if ok := q.ScoreEngine.WaitForClients(ctx); !ok {
 		return
 	}
 
-	q.jobs <- &job{
+	job := &job{
 		payload: j,
 		ctx:     ctx,
 	}
+
+	if deviceId != "" {
+		if d, ok := q.ScoreEngine.GetDevice(deviceId); ok {
+			device := d.(*Device)
+			device.JobChan() <- job
+			return
+		}
+	}
+
+	q.jobs <- job
 }
 
 // StartWithContext starts the queue service with a supplied context.
