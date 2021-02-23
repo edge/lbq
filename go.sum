@@ -4,8 +4,8 @@ github.com/edge/atomiccounter v0.0.0-20210118102141-a90281e7bd3a h1:lRRIRcHsGM5p
 github.com/edge/atomiccounter v0.0.0-20210118102141-a90281e7bd3a/go.mod h1:J5mXM3GpSEKHHWCM2/kW5D/RUaq1Ha7AnxYEFdK2Wvc=
 github.com/edge/atomicstore v0.0.0-20210216161810-732065cc4d7c h1:TyKuk7m0kw6mXfiuLy56KPKB38ybk+/MIbd+EEDQ67c=
 github.com/edge/atomicstore v0.0.0-20210216161810-732065cc4d7c/go.mod h1:oBXOZjh2kMnr0vMX7g3uoaeMowujWEBishvPVOTZNLU=
-github.com/edge/workers v0.0.0-20210223123326-4c443a49ecf1 h1:dVj135z+AiBfg4hk18p33V5oqI9bznagwf/E35EHRWM=
-github.com/edge/workers v0.0.0-20210223123326-4c443a49ecf1/go.mod h1:hdZfUNkRG1LLnkKynhAx6CTotTbvMzOnxyxfvYxAkXo=
+github.com/edge/workers v0.0.0-20210223124842-8249ba3d408f h1:iPK//nztvEFuk5/tqtvl5MEZzETpz1K8VZihHl28M5w=
+github.com/edge/workers v0.0.0-20210223124842-8249ba3d408f/go.mod h1:hdZfUNkRG1LLnkKynhAx6CTotTbvMzOnxyxfvYxAkXo=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
