@@ -5,25 +5,27 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/edge/workers"
 )
 
 // ScoreEngine represents a client <> job scoring engine.
 type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
-	Next() (device *Device, score int, err error)
+	Next() (device workers.Worker, score int, err error)
 	// WaitForClients waits if there are not enough clients.
 	WaitForClients(ctx context.Context) bool
 	// AddClient adds a new client and returns false if the insert failed.
-	AddClient(key string) *Device
-	// AddClientWithContext inserts a client into the score engine with a context.
-	AddClientWithContext(ctx context.Context, key string) *Device
-	// RemoveClient removes a client by key.
+	AddClient(key string) workers.Worker
+	// RemoveClient remove a client by key
 	RemoveClient(key string)
+	// AddClientWithContext inserts a client into the score engine with a context.
+	AddClientWithContext(ctx context.Context, key string) workers.Worker
 	// ClientStartJob tells the score manager that a client has started a job.
 	ClientStartJob(key string)
 	// ClientEndJob tells the score engine that a job has been completed. Used for both canceled and successful jobs.
 	ClientEndJob(key string, canceled bool, timeTaken time.Duration)
-
+	// GetDevice finds a device by key
 	GetDevice(key string) (interface{}, bool)
 	// Reset clears all score and client data.
 	Reset()
@@ -78,8 +80,8 @@ func (q *Queue) sendToNextDevice(j *job) {
 	go q.sendToDevice(device, j)
 }
 
-func (q *Queue) sendToDevice(d *Device, j *job) {
-	if err := d.DoJob(j.payload); err != nil {
+func (q *Queue) sendToDevice(d workers.Worker, j *job) {
+	if err := d.AddJob(j.payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
 		time.Sleep(10 * time.Millisecond)
 		q.jobs <- j
@@ -107,7 +109,7 @@ func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) {
 
 	if deviceID != "" {
 		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
-			device := d.(*Device)
+			device := d.(workers.Worker)
 			go q.sendToDevice(device, deviceJob)
 			return
 		}
@@ -116,8 +118,8 @@ func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) {
 	q.jobs <- deviceJob
 }
 
-// StartWithContext starts the queue service with a supplied context.
-func (q *Queue) StartWithContext(ctx context.Context) {
+// Start starts the queue service with a supplied context.
+func (q *Queue) Start(ctx context.Context) {
 	q.setDefaults()
 	q.server(ctx)
 }
@@ -130,11 +132,6 @@ func (q *Queue) WithEngine(engine ScoreEngine) error {
 
 	q.ScoreEngine = engine
 	return nil
-}
-
-// Start launches the queue service via StartWithContext.
-func (q *Queue) Start() {
-	q.StartWithContext(context.Background())
 }
 
 // New creates a new instance of queue.
