@@ -60,7 +60,7 @@ func (pq *PriorityQueue) Remove(id string) {
 
 func (pq *PriorityQueue) remove(x interface{}) {
 	pq.Lock()
-	defer pq.Unlock()
+	// defer pq.Unlock()
 	id := x.(string)
 	var found *Item
 
@@ -71,7 +71,10 @@ func (pq *PriorityQueue) remove(x interface{}) {
 		}
 	}
 
-	// Remove found item
+	if found == nil {
+		return
+	}
+
 	pq.PriorityQueueItems = pq.PriorityQueueItems[:found.index+copy(pq.PriorityQueueItems[found.index:], pq.PriorityQueueItems[found.index+1:])]
 
 	// Reset indexes
@@ -81,6 +84,7 @@ func (pq *PriorityQueue) remove(x interface{}) {
 		}
 	}
 	heap.Init(pq)
+	pq.Unlock()
 }
 
 // Push adds an item to the heap.
