@@ -68,24 +68,12 @@ func (ism *Manager) Next() (workers.Worker, int, error) {
 
 // WaitForClients waits until there are devices available.
 func (ism *Manager) WaitForClients(ctx context.Context) error {
-	ticker := time.NewTicker(time.Second)
-
 	if ism.Len() > 0 {
 		return nil
 	}
 
-	// Keep retrying until there's a new device.
-	for {
-		select {
-		case <-ticker.C:
-			// If a new device appears exit loop.
-			if ism.Len() > 0 {
-				return nil
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	fmt.Println("Waiting for ISM Client")
+	ism.WaitForDataChange(ctx)
 
 	// Check the context is still active after the wait.
 	return ctx.Err()
