@@ -14,7 +14,7 @@ type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
 	Next() (device workers.Worker, score int, err error)
 	// WaitForClients waits if there are not enough clients.
-	WaitForClients(ctx context.Context) bool
+	WaitForClients(ctx context.Context) error
 	// AddClient adds a new client and returns false if the insert failed.
 	AddClient(key string) workers.Worker
 	// RemoveClient remove a client by key
@@ -83,7 +83,7 @@ func (q *Queue) sendToNextDevice(j *job) {
 func (q *Queue) sendToDevice(d workers.Worker, j *job) {
 	if err := d.AddJob(j.payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		q.jobs <- j
 		return
 	}
@@ -96,26 +96,30 @@ func (q *Queue) setDefaults() {
 }
 
 // Do runs a job.
-func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) {
-	// Wait for at least one device.
-	if ok := q.ScoreEngine.WaitForClients(ctx); !ok {
-		return
+func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 
 	deviceJob := &job{
 		payload: payload,
 		ctx:     ctx,
 	}
-
+	// If a device is specified bypass the job queue and send directly.
 	if deviceID != "" {
 		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
 			device := d.(workers.Worker)
 			go q.sendToDevice(device, deviceJob)
-			return
+			return nil
 		}
+	}
+	// Wait for at least one device.
+	if err := q.ScoreEngine.WaitForClients(ctx); err != nil {
+		return err
 	}
 
 	q.jobs <- deviceJob
+	return nil
 }
 
 // Start starts the queue service with a supplied context.
