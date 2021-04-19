@@ -54,10 +54,6 @@ func (q *Queue) server(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case j := <-q.jobs:
-				// This job has closed.
-				if j.ctx.Err() != nil {
-					continue
-				}
 				go q.sendToNextDevice(j)
 			}
 		}
@@ -65,6 +61,10 @@ func (q *Queue) server(ctx context.Context) {
 }
 
 func (q *Queue) sendToNextDevice(j *job) {
+	// This job has closed.
+	if j.ctx.Err() != nil {
+		return
+	}
 	device, _, err := q.ScoreEngine.Next()
 	if err != nil {
 		fmt.Println("NO DEVICE: ADD BACK TO QUEUE", err)
@@ -77,6 +77,10 @@ func (q *Queue) sendToNextDevice(j *job) {
 }
 
 func (q *Queue) sendToDevice(d workers.Worker, j *job) {
+	// This job has closed.
+	if j.ctx.Err() != nil {
+		return
+	}
 	if err := d.AddJob(j.payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
 		time.Sleep(throttle)
