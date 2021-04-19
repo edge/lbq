@@ -13,8 +13,6 @@ import (
 type ScoreEngine interface {
 	// Next returns the key for a client and its current score.
 	Next() (device workers.Worker, score int, err error)
-	// WaitForClients waits if there are not enough clients.
-	WaitForClients(ctx context.Context) error
 	// AddClient adds a new client and returns false if the insert failed.
 	AddClient(key string) workers.Worker
 	// RemoveClient remove a client by key
@@ -33,10 +31,10 @@ type ScoreEngine interface {
 	Dump()
 }
 
-var (
-	// ErrSetEngineAfterStart is thrown when an attempt to set an engine is made following a queue start.
-	ErrSetEngineAfterStart = errors.New("ScoreEngine can't be changed after Start has been called")
-)
+const throttle time.Duration = time.Duration(100 * time.Millisecond)
+
+// ErrSetEngineAfterStart is thrown when an attempt to set an engine is made following a queue start.
+var ErrSetEngineAfterStart = errors.New("ScoreEngine can't be changed after Start has been called")
 
 // Queue is a atomic data store with a load balancer.
 type Queue struct {
@@ -60,7 +58,7 @@ func (q *Queue) server(ctx context.Context) {
 				if j.ctx.Err() != nil {
 					continue
 				}
-				q.sendToNextDevice(j)
+				go q.sendToNextDevice(j)
 			}
 		}
 	}()
@@ -69,21 +67,19 @@ func (q *Queue) server(ctx context.Context) {
 func (q *Queue) sendToNextDevice(j *job) {
 	device, _, err := q.ScoreEngine.Next()
 	if err != nil {
-		fmt.Println("NO DEVICE: ADD BACK TO QUEUE")
+		fmt.Println("NO DEVICE: ADD BACK TO QUEUE", err)
 		// Wait for a short time before adding back to the queue.
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			q.jobs <- j
-		}()
+		time.Sleep(throttle)
+		q.jobs <- j
 		return
 	}
-	go q.sendToDevice(device, j)
+	q.sendToDevice(device, j)
 }
 
 func (q *Queue) sendToDevice(d workers.Worker, j *job) {
 	if err := d.AddJob(j.payload); err != nil {
 		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(throttle)
 		q.jobs <- j
 		return
 	}
@@ -113,12 +109,8 @@ func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) er
 			return nil
 		}
 	}
-	// Wait for at least one device.
-	if err := q.ScoreEngine.WaitForClients(ctx); err != nil {
-		return err
-	}
-
 	q.jobs <- deviceJob
+
 	return nil
 }
 

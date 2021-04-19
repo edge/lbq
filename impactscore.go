@@ -66,19 +66,6 @@ func (ism *Manager) Next() (workers.Worker, int, error) {
 	return nil, 0, ErrDeviceMissing
 }
 
-// WaitForClients waits until there are devices available.
-func (ism *Manager) WaitForClients(ctx context.Context) error {
-	if ism.Len() > 0 {
-		return nil
-	}
-
-	fmt.Println("Waiting for ISM Client")
-	ism.WaitForDataChange(ctx)
-
-	// Check the context is still active after the wait.
-	return ctx.Err()
-}
-
 func (ism *Manager) getDeviceMeta(d workers.Worker) *deviceMetadata {
 	md := d.GetMetadata()
 	if metadata, ok := md.(*deviceMetadata); ok {
@@ -137,10 +124,8 @@ func (ism *Manager) AddClientWithContext(ctx context.Context, key string) worker
 		Priority: ism.getDeviceScore(device),
 		ID:       key,
 	}
-	ism.priorityQueue.Push(item)
 
-	// Notify listeners that devices changed.
-	ism.NotifyDidChange()
+	ism.priorityQueue.Push(item)
 
 	return device
 }
