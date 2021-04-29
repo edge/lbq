@@ -137,6 +137,7 @@ func (ism *Manager) AddClient(key string) workers.Worker {
 
 // RemoveClient removes the client from the score engine.
 func (ism *Manager) RemoveClient(key string) {
+	fmt.Printf("scoreManager: remove host %q\n", key)
 	ism.Remove(key)
 	ism.priorityQueue.Remove(key)
 }
