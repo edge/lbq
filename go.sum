@@ -2,10 +2,10 @@ github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/edge/atomiccounter v0.0.0-20210118102141-a90281e7bd3a h1:lRRIRcHsGM5p5bz79VHVyrTMKV5puIlj68bU9Q7tx0o=
 github.com/edge/atomiccounter v0.0.0-20210118102141-a90281e7bd3a/go.mod h1:J5mXM3GpSEKHHWCM2/kW5D/RUaq1Ha7AnxYEFdK2Wvc=
-github.com/edge/atomicstore v0.0.0-20210419132443-87d112a72e93 h1:MTL6Q6VYiHi+UURoJ8e8Gs2XPJe9ZL02tZd61o8O8zM=
-github.com/edge/atomicstore v0.0.0-20210419132443-87d112a72e93/go.mod h1:oBXOZjh2kMnr0vMX7g3uoaeMowujWEBishvPVOTZNLU=
-github.com/edge/workers v0.0.0-20210419143317-4f9c9c930bf4 h1:0lsCs0yCBspO5s9SoKaeMTyI4MVl7p9CTHoPhF/v6e8=
-github.com/edge/workers v0.0.0-20210419143317-4f9c9c930bf4/go.mod h1:QkkYHtNM/kBQQBZ45qrDpV1Dkqn0eJiTgIZGID8FGUQ=
+github.com/edge/atomicstore v0.0.0-20210504164613-6655afcec241 h1:A9WWw4JLD9b6EbT0aSkmwsP2xlUGJ7S1CMzX7gKWvI8=
+github.com/edge/atomicstore v0.0.0-20210504164613-6655afcec241/go.mod h1:oBXOZjh2kMnr0vMX7g3uoaeMowujWEBishvPVOTZNLU=
+github.com/edge/workers v0.0.0-20210504164913-5b0ef662bbff h1:IwJDtsoDJGzevt7RmsgJGKBVnNrj5T5ZsOgFI7nxDac=
+github.com/edge/workers v0.0.0-20210504164913-5b0ef662bbff/go.mod h1:d/J7dflBmxpbI8WVXb+sNkx9eVKYof1RP5KezqDxnmc=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
