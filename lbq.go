@@ -31,7 +31,7 @@ type ScoreEngine interface {
 	Dump()
 }
 
-const throttle time.Duration = time.Duration(100 * time.Millisecond)
+const throttle time.Duration = time.Duration(time.Second)
 
 // ErrSetEngineAfterStart is thrown when an attempt to set an engine is made following a queue start.
 var ErrSetEngineAfterStart = errors.New("ScoreEngine can't be changed after Start has been called")
@@ -137,6 +137,6 @@ func (q *Queue) WithEngine(engine ScoreEngine) error {
 // New creates a new instance of queue.
 func New() *Queue {
 	return &Queue{
-		jobs: make(chan *job, 0),
+		jobs: make(chan *job),
 	}
 }
