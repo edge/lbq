@@ -54,38 +54,50 @@ func (q *Queue) server(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case j := <-q.jobs:
-				go q.sendToNextDevice(j)
+				go q.sendToNextWorker(j)
 			}
 		}
 	}()
 }
 
-func (q *Queue) sendToNextDevice(j *job) {
+func (q *Queue) retryJob(j *job) {
+	// Wait for a short time before adding back to the queue.
+	time.Sleep(throttle)
+	select {
+	case <-j.ctx.Done():
+		return
+	case q.jobs <- j:
+		return
+	default:
+		return
+	}
+}
+
+// sendToNextWorker finds the next worker and sends it a job.
+func (q *Queue) sendToNextWorker(j *job) {
 	// This job has closed.
 	if j.ctx.Err() != nil {
 		return
 	}
 	device, _, err := q.ScoreEngine.Next()
-	if err != nil {
-		fmt.Println("NO DEVICE: ADD BACK TO QUEUE", err)
-		// Wait for a short time before adding back to the queue.
-		time.Sleep(throttle)
-		q.jobs <- j
+	if err == nil {
+		q.sendToWorker(device, j)
 		return
 	}
-	q.sendToDevice(device, j)
+
+	fmt.Printf(`NO DEVICE: ADD BACK TO QUEUE %v`, err)
+	go q.retryJob(j)
 }
 
-func (q *Queue) sendToDevice(d workers.Worker, j *job) {
+// sendToWorker sends the job to a worker.
+func (q *Queue) sendToWorker(d workers.Worker, j *job) {
 	// This job has closed.
 	if j.ctx.Err() != nil {
 		return
 	}
 	if err := d.AddJob(j.payload); err != nil {
-		fmt.Println("DEVICE DO ERROR: INSERT IT AGAIN")
-		time.Sleep(throttle)
-		q.jobs <- j
-		return
+		fmt.Printf(`DEVICE DO ERROR: INSERT IT AGAIN %v`, err)
+		go q.retryJob(j)
 	}
 }
 
@@ -109,7 +121,7 @@ func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) er
 	if deviceID != "" {
 		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
 			device := d.(workers.Worker)
-			go q.sendToDevice(device, deviceJob)
+			go q.sendToWorker(device, deviceJob)
 			return nil
 		}
 	}
