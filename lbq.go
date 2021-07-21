@@ -62,14 +62,17 @@ func (q *Queue) server(ctx context.Context) {
 
 func (q *Queue) retryJob(j *job) {
 	// Wait for a short time before adding back to the queue.
-	time.Sleep(throttle)
 	select {
 	case <-j.ctx.Done():
 		return
-	case q.jobs <- j:
-		return
-	default:
-		return
+	case <-time.After(throttle):
+		// Attempt to add the job back.
+		select {
+		case q.jobs <- j:
+			return
+		default:
+			return
+		}
 	}
 }
 
