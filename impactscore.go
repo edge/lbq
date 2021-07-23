@@ -96,10 +96,8 @@ func (ism *Manager) incDeviceHandled(d workers.Worker) {
 
 func (ism *Manager) decDevicePending(d workers.Worker) {
 	if md := ism.getDeviceMeta(d); md != nil {
-		// decrement pendingRequestsCount. panic if it becomes negative, since this should NEVER happen.
-		if atomic.AddUint64(&md.pendingRequestsCount, ^uint64(0)) < 0 {
-			panic("negative pendingRequestsCount")
-		}
+		// decrement pendingRequestsCount
+		atomic.AddUint64(&md.pendingRequestsCount, ^uint64(0))
 	}
 }
 
@@ -116,7 +114,7 @@ func (ism *Manager) AddClientWithContext(ctx context.Context, key string) worker
 	device := ism.newDevice(key, 0)
 
 	if d, err := ism.Add(ctx, device); err != nil {
-		fmt.Errorf("scoreManager failed to insert %s: %w\n", key, err)
+		fmt.Printf("scoreManager failed to insert %s: %v\n", key, err)
 		return d.(workers.Worker)
 	}
 

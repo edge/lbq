@@ -82,13 +82,13 @@ func (q *Queue) sendToNextWorker(j *job) {
 	if j.ctx.Err() != nil {
 		return
 	}
-	device, _, err := q.ScoreEngine.Next()
+	worker, _, err := q.ScoreEngine.Next()
 	if err == nil {
-		q.sendToWorker(device, j)
+		q.sendToWorker(worker, j)
 		return
 	}
 
-	fmt.Printf(`NO DEVICE: ADD BACK TO QUEUE %v`, err)
+	fmt.Printf("NO DEVICE: ADD BACK TO QUEUE %v\n", err)
 	go q.retryJob(j)
 }
 
@@ -99,7 +99,7 @@ func (q *Queue) sendToWorker(d workers.Worker, j *job) {
 		return
 	}
 	if err := d.AddJob(j.payload); err != nil {
-		fmt.Printf(`DEVICE DO ERROR: INSERT IT AGAIN %v`, err)
+		fmt.Printf("DEVICE DO ERROR: INSERT IT AGAIN %v\n", err)
 		go q.retryJob(j)
 	}
 }
@@ -111,24 +111,24 @@ func (q *Queue) setDefaults() {
 }
 
 // Do runs a job.
-func (q *Queue) Do(ctx context.Context, payload interface{}, deviceID string) error {
+func (q *Queue) Do(ctx context.Context, payload interface{}, workerID string) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 
-	deviceJob := &job{
+	workerJob := &job{
 		payload: payload,
 		ctx:     ctx,
 	}
 	// If a device is specified bypass the job queue and send directly.
-	if deviceID != "" {
-		if d, ok := q.ScoreEngine.GetDevice(deviceID); ok {
-			device := d.(workers.Worker)
-			go q.sendToWorker(device, deviceJob)
+	if workerID != "" {
+		if d, ok := q.ScoreEngine.GetDevice(workerID); ok {
+			worker := d.(workers.Worker)
+			go q.sendToWorker(worker, workerJob)
 			return nil
 		}
 	}
-	q.jobs <- deviceJob
+	q.jobs <- workerJob
 
 	return nil
 }
