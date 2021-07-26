@@ -67,7 +67,13 @@ func (q *Queue) retryJob(j *job) {
 		return
 	case <-time.After(throttle):
 		// Attempt to add the job back.
-		q.jobs <- j
+		select {
+		case q.jobs <- j:
+			return
+		default:
+			fmt.Printf("Failed to insert job on retry")
+			return
+		}
 	}
 }
 
