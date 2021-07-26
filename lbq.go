@@ -67,12 +67,7 @@ func (q *Queue) retryJob(j *job) {
 		return
 	case <-time.After(throttle):
 		// Attempt to add the job back.
-		select {
-		case q.jobs <- j:
-			return
-		default:
-			return
-		}
+		q.jobs <- j
 	}
 }
 
