@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrDeviceMissing = errors.New("Unable to find device")
-	ErrNoResults     = errors.New("There are no scored items")
+	ErrDeviceMissing = errors.New("unable to find device")
+	ErrNoResults     = errors.New("there are no scored items")
 )
 
 type Manager struct {
@@ -115,7 +115,7 @@ func (ism *Manager) AddClientWithContext(ctx context.Context, key string) worker
 
 	if d, err := ism.Add(ctx, device); err != nil {
 		fmt.Printf("scoreManager failed to insert %s: %v\n", key, err)
-		return d.(workers.Worker)
+		return d
 	}
 
 	item := &Item{
